@@ -1,0 +1,147 @@
+import numpy as np
+import gzip
+import matplotlib.pyplot as plt
+from PIL import Image
+
+
+def read_idx3(filename):
+    """
+    Read the given file with its name
+    :param filename: extension name of the file is '.gz'
+    :return: images data, shape -> num, rows, cols
+    """
+    with gzip.open(filename) as fo:
+        print('Reading images')
+        buf = fo.read()
+
+        offset = 0  # 指针
+        header = np.frombuffer(buf, '>i', 4, offset)
+        magic_number, num_images, num_rows, num_cols = header
+        print("magic number: {}, \nnumber of images: {},\nnumber of rows: {}, \nnumber of columns: {}" \
+              .format(magic_number, num_images, num_rows, num_cols))
+
+        offset += header.size * header.itemsize
+        data = np.frombuffer(buf, '>B', num_images * num_rows * num_cols, offset).reshape(
+            (num_images, num_rows, num_cols))
+
+        return data
+
+
+def read_idx1(filename):
+    """
+    Read the given file with its name
+    :param filename: extension name of the file is '.gz'
+    :return: labels
+    """
+    with gzip.open(filename) as fo:
+        print('Reading labels')
+        buf = fo.read()
+
+        offset = 0
+        header = np.frombuffer(buf, '>i', 2, offset)
+        magic_number, num_labels = header
+        print("magic number: {}, \nnumber of labels: {}" \
+              .format(magic_number, num_labels))
+
+        offset += header.size * header.itemsize
+
+        data = np.frombuffer(buf, '>B', num_labels, offset)
+        return data
+
+
+def show(images, labels, letter_mapping, window=(3, 4)):
+    fig, axes = plt.subplots(*window, figsize=(15, 15))
+    #     fig.set_figheight(15)
+    #     fig.set_figwidth(15)
+
+    for row in range(window[0]):
+        for column in range(window[1]):
+            ind = window[1] * row + column
+            x = images[ind]
+            y = labels[ind]
+
+            axes[row][column].imshow(x, cmap=plt.cm.gray)
+            axes[row][column].set_title(letter_mapping[y], fontsize=30)
+            axes[row][column].axis('off')
+            plt.tight_layout()
+
+    plt.show()
+
+
+def parse_emnist(output_path, *arg):
+    """
+    :param output_path:
+    :param arg: four path -> train_img, train_label, test_img, test_label
+    :return: None
+    """
+    train_img_path, train_label_path, test_img_path, test_label_path = arg
+    train_img_data = read_idx3(train_img_path)
+    train_label_data = read_idx1(train_label_path)
+    test_img_data = read_idx3(test_img_path)
+    test_label_data = read_idx1(test_label_path)
+
+    if np.min(train_label_data) == 1:
+        train_label_data = train_label_data - 1
+        test_label_data = test_label_data - 1
+
+    np.savez(output_path,
+             x_train=train_img_data,
+             y_train=train_label_data,
+             x_test=test_img_data,
+             y_test=test_label_data)
+    print('Congratulations, your job has been done! Go to have a rest.')
+
+
+def load_data(path):
+    """Loads the EMNIST dataset.
+
+    # Arguments
+        path: path where to load the dataset
+
+    # Returns
+        Tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.
+    """
+    f = np.load(path)
+    x_train, y_train = f['x_train'], f['y_train']
+    x_test, y_test = f['x_test'], f['y_test']
+    f.close()
+    return (x_train, y_train), (x_test, y_test)
+
+
+labels = read_idx1('emnist\emnist-letters-train-labels-idx1-ubyte')
+test_data = read_idx3('emnist\emnist-letters-train-images-idx3-ubyte')
+
+# img = Image.fromarray(test_data[0])
+# img.show()
+# img = img.rotate(90)
+# img.show()
+num = np.zeros(26)
+data = []
+label = []
+# for i in range(labels.size):
+#     if labels[i] != 1 and labels[i] != 2 and labels[i] != 3 and labels[i] != 4 and labels[i] != 8 and labels[i] != 9 and labels[i] != 10 and labels[i] != 11 and num[labels[i]-1] < 200:
+#         img = Image.fromarray(test_data[i])
+#         img = img.rotate(-90)
+#         img = img.transpose(Image.FLIP_LEFT_RIGHT)
+#         data.append(np.array(img))
+#         label.append(labels[i])
+#         num[labels[i]-1] = num[labels[i]-1]+1
+#         plt.imshow(img)
+#         plt.show()
+# print(len(data), len(label))
+# np.save('emnist_data.npy', data)
+# np.save('emnist_labels.npy', label)
+
+for i in range(10000, 11000):
+    if labels[i] != 1 and labels[i] != 2 and labels[i] != 3 and labels[i] != 4 and labels[i] != 8 and labels[i] != 9 and \
+            labels[i] != 10 and labels[i] != 11:
+        img = Image.fromarray(test_data[i])
+        img = img.rotate(-90)
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+        data.append(np.array(img))
+        label.append(labels[i])
+        num[labels[i]-1] = num[labels[i]-1]+1
+        # plt.imshow(img)
+        # plt.show()
+print(len(data), len(label))
+np.save('test_data.npy', data)
